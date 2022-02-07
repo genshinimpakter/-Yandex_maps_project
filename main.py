@@ -4,6 +4,7 @@ import requests
 from PyQt5 import uic  # Импортируем uic
 from PyQt5.QtGui import QPixmap
 from PyQt5.QtWidgets import QApplication, QMainWindow
+from PyQt5.QtCore import Qt
 import os
 import geocoder
 
@@ -33,6 +34,17 @@ class MapShower(QMainWindow):
         self.map.setPixmap(map_pic)
 
         os.remove(self.map_file)
+
+    def keyPressEvent(self, event):
+        if event.key() == Qt.Key_Left:
+            self.longtitude_input.setText(f'{float(self.longtitude_input.text()) - 0.001}')
+        elif event.key() == Qt.Key_Right:
+            self.longtitude_input.setText(f'{float(self.longtitude_input.text()) + 0.001}')
+        elif event.key() == Qt.Key_Up:
+            self.latitude_input.setText(f'{float(self.latitude_input.text()) + 0.001}')
+        elif event.key() == Qt.Key_Down:
+            self.latitude_input.setText(f'{float(self.latitude_input.text()) - 0.001}')
+        self.show_map_func()
 
 
 if __name__ == '__main__':

@@ -2,7 +2,7 @@ import os
 import sys
 
 import requests
-from PyQt5 import uic  # Импортируем uic
+from PyQt5 import uic
 from PyQt5.QtCore import Qt
 from PyQt5.QtGui import QPixmap
 from PyQt5.QtWidgets import QApplication, QMainWindow
@@ -19,45 +19,80 @@ class MapShower(QMainWindow):
         self.mode = 'map'
         self.map_mode.setEnabled(False)
 
+        self.lon_save = ''
+        self.lat_save = ''
+        self.span_save = ''
+
+        self.clear_mode = False
+
         self.show_map.clicked.connect(self.show_map_func)
         self.map_mode.clicked.connect(self.change_map_mode)
         self.sat_mode.clicked.connect(self.change_map_mode)
         self.skl_mode.clicked.connect(self.change_map_mode)
         self.map_delete.clicked.connect(self.delete_map)
 
-    def show_map_func(self):
+    def collect_coords_from_user(self):
         # Узнаём у пользователя координаты объекта
         lon = self.longtitude_input.text()
         lat = self.latitude_input.text()
+        flag_coords = False
+        if lon and lat:
+            flag_coords = True
+        return lon, lat, flag_coords
+
+    def collect_address_from_user(self):
+        # Узнаём у пользователя адрес объекта
         address = self.object_address.text()
+        flag_address = True if address else False
+        return address, flag_address
+
+    def show_map_func(self):
+        lon, lat, flag_coords = self.collect_coords_from_user()
+        address, flag_address = self.collect_address_from_user()
         flag_right_inp = True
-        flag_address = False # Заполнено ли поле адреса
+
+        # Объявляем переменные, чтобы программа не рухнула
+        ll = ''
+        span = ''
 
         # Проверяем заполненность строк, нам не нужно, чтобы сразу
         # были заполненны и координаты и адрес
-        if lon and lat and not address:
+        if flag_coords and not flag_address:
             ll, span = geocoder.get_ll_span(f'{lon} {lat}')
-        if address and not lon and not lat:
-            flag_address = True
+            self.clear_mode = False
+        if flag_address and not flag_coords:
             ll, span = geocoder.get_ll_span(f'{address}')
+            self.lon_save = ll.split(',')[0]
+            self.lat_save = ll.split(',')[1]
+            self.span_save = span
+            self.clear_mode = False
         else:
             flag_right_inp = False
 
-        if flag_right_inp:
-            # Формируем и отсылаем запрос
+        if flag_right_inp or self.clear_mode:
+            # Формируем параметры
             params = {'ll': ll, 'spn': span, 'l': self.mode}
-            if flag_address: # Добавляем метку
+            if flag_address and not self.clear_mode:
+                # Добавляем метку
                 params["pt"] = "{0},pm2dgl".format(ll)
-            map_api_server = 'http://static-maps.yandex.ru/1.x/'
-            response = requests.get(map_api_server, params)
+            if self.clear_mode:
+                params['ll'] = f'{self.lon_save},{self.lat_save}'
+                params['spn'] = self.span_save
 
-            # Получаем ответ, закидываем его в картинку, отображаем её
-            with open(self.map_file, "wb") as file:
-                file.write(response.content)
+            self.map_response_collect(params)
+
             map_pic = QPixmap(self.map_file)
             self.map.setPixmap(map_pic)
 
             os.remove(self.map_file)
+
+    def map_response_collect(self, params):
+        map_api_server = 'http://static-maps.yandex.ru/1.x/'
+        response = requests.get(map_api_server, params)
+
+        # Получаем ответ, закидываем его в картинку
+        with open(self.map_file, "wb") as file:
+            file.write(response.content)
 
     def change_map_mode(self):
         # Узнаём, что написано на кнопке, отправившей сигнал
@@ -82,10 +117,9 @@ class MapShower(QMainWindow):
             self.show_map_func()
 
     def delete_map(self):
-        self.map.clear()
         self.object_address.clear()
-        self.longtitude_input.clear()
-        self.latitude_input.clear()
+        self.clear_mode = True
+        self.show_map_func()
 
     def keyPressEvent(self, event):
         if event.key() == Qt.Key_Left:

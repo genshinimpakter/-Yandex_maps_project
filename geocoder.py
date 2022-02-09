@@ -1,6 +1,7 @@
 import requests
 
 API_KEY = '40d1649f-0493-4b70-98ba-98533de7710b'
+span = "0.016457,0.00619"
 
 
 def geocode(address):
@@ -59,17 +60,8 @@ def get_ll_span(address):
     # Рамка вокруг объекта:
     envelope = toponym["boundedBy"]["Envelope"]
 
-    # левая, нижняя, правая и верхняя границы из координат углов:
-    l, b = envelope["lowerCorner"].split(" ")
-    r, t = envelope["upperCorner"].split(" ")
-
     # Вычисляем полуразмеры по вертикали и горизонтали
-    dx = abs(float(l) - float(r)) / 2.0
-    dy = abs(float(t) - float(b)) / 2.0
-
     # Собираем размеры в параметр span
-    span = f"{dx},{dy}"
-
     return ll, span
 
 

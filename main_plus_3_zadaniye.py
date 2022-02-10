@@ -66,7 +66,7 @@ class MapShower(QMainWindow):
             self.lat_save = ll.split(',')[1]
             self.span_save = span
             self.clear_mode = False
-        else:
+        if not flag_coords and not flag_address:
             flag_right_inp = False
 
         if flag_right_inp or self.clear_mode:

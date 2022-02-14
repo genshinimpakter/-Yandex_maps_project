@@ -16,8 +16,11 @@ class MapShower(QMainWindow):
         self.map_file = "map.png"
         uic.loadUi('app_des.ui', self)
 
+
         self.mode = 'map'
         self.map_mode.setEnabled(False)
+
+        self.lat, self.lon = 0, 0
 
         self.lon_save = ''
         self.lat_save = ''
@@ -25,7 +28,7 @@ class MapShower(QMainWindow):
 
         self.clear_mode = False
 
-        self.show_map.clicked.connect(self.show_map_func)
+        self.show_map.clicked.connect(self.run)
         self.map_mode.clicked.connect(self.change_map_mode)
         self.sat_mode.clicked.connect(self.change_map_mode)
         self.skl_mode.clicked.connect(self.change_map_mode)
@@ -33,12 +36,10 @@ class MapShower(QMainWindow):
 
     def collect_coords_from_user(self):
         # Узнаём у пользователя координаты объекта
-        lon = self.longtitude_input.text()
-        lat = self.latitude_input.text()
         flag_coords = False
-        if lon and lat:
+        if self.lon and self.lat:
             flag_coords = True
-        return lon, lat, flag_coords
+        return flag_coords
 
     def collect_address_from_user(self):
         # Узнаём у пользователя адрес объекта
@@ -46,8 +47,22 @@ class MapShower(QMainWindow):
         flag_address = True if address else False
         return address, flag_address
 
+    def run(self):
+        self.latitude_input.setEnabled(False)
+        self.longtitude_input.setEnabled(False)
+        self.object_address.setEnabled(False)
+        self.show_map.setEnabled(False)
+        self.show_map_func()
+
     def show_map_func(self):
-        lon, lat, flag_coords = self.collect_coords_from_user()
+        if self.latitude_input.text() and self.longtitude_input.text():
+            self.lat, self.lon = float(self.latitude_input.text().strip()), float(self.longtitude_input.text().strip())
+        elif self.object_address.text():
+            self.lat, self.lon = list(map(float, self.object_address.text().replace(' ', '').split(',')))
+        else:
+            return
+
+        flag_coords = self.collect_coords_from_user()
         address, flag_address = self.collect_address_from_user()
         flag_right_inp = True
 
@@ -58,7 +73,7 @@ class MapShower(QMainWindow):
         # Проверяем заполненность строк, нам не нужно, чтобы сразу
         # были заполненны и координаты и адрес
         if flag_coords and not flag_address:
-            ll, span = geocoder.get_ll_span(f'{lon} {lat}')
+            ll, span = geocoder.get_ll_span(f'{self.lon} {self.lat}')
             self.clear_mode = False
         if flag_address and not flag_coords:
             ll, span = geocoder.get_ll_span(f'{address}')
@@ -68,7 +83,6 @@ class MapShower(QMainWindow):
             self.clear_mode = False
         if not flag_coords and not flag_address:
             flag_right_inp = False
-
         if flag_right_inp or self.clear_mode:
             # Формируем параметры
             params = {'ll': ll, 'spn': span, 'l': self.mode}
@@ -117,30 +131,32 @@ class MapShower(QMainWindow):
             self.show_map_func()
 
     def delete_map(self):
+        self.latitude_input.setEnabled(True)
+        self.longtitude_input.setEnabled(True)
+        self.object_address.setEnabled(True)
+        self.show_map.setEnabled(True)
+
         self.object_address.clear()
         self.clear_mode = True
         self.show_map_func()
 
     def keyPressEvent(self, event):
-        if event.key() == Qt.Key_Left:
-            self.longtitude_input.setText(
-                f'{float(self.longtitude_input.text()) - 0.01}')
-        if event.key() == Qt.Key_Right:
-            self.longtitude_input.setText(
-                f'{float(self.longtitude_input.text()) + 0.01}')
-        if event.key() == Qt.Key_Up:
-            self.latitude_input.setText(
-                f'{float(self.latitude_input.text()) + 0.01}')
-        if event.key() == Qt.Key_Down:
-            self.latitude_input.setText(
-                f'{float(self.latitude_input.text()) - 0.01}')
-        if event.key() == Qt.Key_PageUp:
-            geocoder.span = \
-                f"{float(geocoder.span.split(',')[0]) / 2},{float(geocoder.span.split(',')[1]) / 2}"
-        if event.key() == Qt.Key_PageDown:
-            geocoder.span = \
-                f"{float(geocoder.span.split(',')[0]) * 2},{float(geocoder.span.split(',')[1]) * 2}"
-        self.show_map_func()
+        if event.key() in [Qt.Key_Left, Qt.Key_Right, Qt.Key_Up, Qt.Key_Down, Qt.Key_PageUp, Qt.Key_PageDown]:
+            if event.key() == Qt.Key_Left:
+                self.lon -= 0.0002
+            if event.key() == Qt.Key_Right:
+                self.lon += 0.0002
+            if event.key() == Qt.Key_Up:
+                self.lat += 0.0002
+            if event.key() == Qt.Key_Down:
+                self.lat -= 0.0002
+            if event.key() == Qt.Key_PageUp:
+                geocoder.span = \
+                    f"{float(geocoder.span.split(',')[0]) / 2},{float(geocoder.span.split(',')[1]) / 2}"
+            if event.key() == Qt.Key_PageDown:
+                geocoder.span = \
+                    f"{float(geocoder.span.split(',')[0]) * 2},{float(geocoder.span.split(',')[1]) * 2}"
+            self.show_map_func()
 
 
 if __name__ == '__main__':

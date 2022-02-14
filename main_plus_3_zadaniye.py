@@ -34,19 +34,6 @@ class MapShower(QMainWindow):
         self.skl_mode.clicked.connect(self.change_map_mode)
         self.map_delete.clicked.connect(self.delete_map)
 
-    def collect_coords_from_user(self):
-        # Узнаём у пользователя координаты объекта
-        flag_coords = False
-        if self.lon and self.lat:
-            flag_coords = True
-        return flag_coords
-
-    def collect_address_from_user(self):
-        # Узнаём у пользователя адрес объекта
-        address = self.object_address.text()
-        flag_address = True if address else False
-        return address, flag_address
-
     def run(self):
         self.latitude_input.setEnabled(False)
         self.longtitude_input.setEnabled(False)
@@ -55,50 +42,32 @@ class MapShower(QMainWindow):
         self.show_map_func()
 
     def show_map_func(self):
-        if self.latitude_input.text() and self.longtitude_input.text():
-            self.lat, self.lon = float(self.latitude_input.text().strip()), float(self.longtitude_input.text().strip())
-        elif self.object_address.text():
+        flag_address = False
+        if self.object_address.text():
             self.lat, self.lon = list(map(float, self.object_address.text().replace(' ', '').split(',')))
+            flag_address = True
+        elif self.latitude_input.text() and self.longtitude_input.text():
+            self.lat, self.lon = float(self.latitude_input.text().strip()), float(self.longtitude_input.text().strip())
         else:
             return
 
-        flag_coords = self.collect_coords_from_user()
-        address, flag_address = self.collect_address_from_user()
-        flag_right_inp = True
-
         # Объявляем переменные, чтобы программа не рухнула
-        ll = ''
-        span = ''
+        ll, span = geocoder.get_ll_span(f'{self.lon} {self.lat}')
+        # Формируем параметры
+        params = {'ll': ll, 'spn': span, 'l': self.mode}
+        if flag_address:
+            # Добавляем метку
+            params["pt"] = "{0},pm2dgl".format(ll)
+        if self.clear_mode:
+            params['ll'] = f'{self.lon_save},{self.lat_save}'
+            params['spn'] = self.span_save
 
-        # Проверяем заполненность строк, нам не нужно, чтобы сразу
-        # были заполненны и координаты и адрес
-        if flag_coords and not flag_address:
-            ll, span = geocoder.get_ll_span(f'{self.lon} {self.lat}')
-            self.clear_mode = False
-        if flag_address and not flag_coords:
-            ll, span = geocoder.get_ll_span(f'{address}')
-            self.lon_save = ll.split(',')[0]
-            self.lat_save = ll.split(',')[1]
-            self.span_save = span
-            self.clear_mode = False
-        if not flag_coords and not flag_address:
-            flag_right_inp = False
-        if flag_right_inp or self.clear_mode:
-            # Формируем параметры
-            params = {'ll': ll, 'spn': span, 'l': self.mode}
-            if flag_address and not self.clear_mode:
-                # Добавляем метку
-                params["pt"] = "{0},pm2dgl".format(ll)
-            if self.clear_mode:
-                params['ll'] = f'{self.lon_save},{self.lat_save}'
-                params['spn'] = self.span_save
+        self.map_response_collect(params)
 
-            self.map_response_collect(params)
+        map_pic = QPixmap(self.map_file)
+        self.map.setPixmap(map_pic)
 
-            map_pic = QPixmap(self.map_file)
-            self.map.setPixmap(map_pic)
-
-            os.remove(self.map_file)
+        os.remove(self.map_file)
 
     def map_response_collect(self, params):
         map_api_server = 'http://static-maps.yandex.ru/1.x/'
@@ -136,8 +105,10 @@ class MapShower(QMainWindow):
         self.object_address.setEnabled(True)
         self.show_map.setEnabled(True)
 
+        self.map.clear()
         self.object_address.clear()
-        self.clear_mode = True
+        self.latitude_input.clear()
+        self.longtitude_input.clear()
         self.show_map_func()
 
     def keyPressEvent(self, event):

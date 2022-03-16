@@ -16,7 +16,6 @@ class MapShower(QMainWindow):
         self.map_file = "map.png"
         uic.loadUi('app_des.ui', self)
 
-
         self.mode = 'map'
         self.map_mode.setEnabled(False)
 
@@ -27,14 +26,25 @@ class MapShower(QMainWindow):
         self.span_save = ''
 
         self.clear_mode = False
+        self.flag_address = False
 
         self.show_map.clicked.connect(self.run)
         self.map_mode.clicked.connect(self.change_map_mode)
         self.sat_mode.clicked.connect(self.change_map_mode)
         self.skl_mode.clicked.connect(self.change_map_mode)
         self.map_delete.clicked.connect(self.delete_map)
+        self.map_delete.setFocus()
+        self.setFocusPolicy(Qt.StrongFocus)
 
     def run(self):
+        self.flag_address = False
+        if self.object_address.text():
+            self.lat, self.lon = list(map(float, self.object_address.text().replace(' ', '').split(',')))
+            self.flag_address = True
+        elif self.latitude_input.text() and self.longtitude_input.text():
+            self.lat, self.lon = float(self.latitude_input.text().strip()), float(self.longtitude_input.text().strip())
+        else:
+            return
         self.latitude_input.setEnabled(False)
         self.longtitude_input.setEnabled(False)
         self.object_address.setEnabled(False)
@@ -42,20 +52,11 @@ class MapShower(QMainWindow):
         self.show_map_func()
 
     def show_map_func(self):
-        flag_address = False
-        if self.object_address.text():
-            self.lat, self.lon = list(map(float, self.object_address.text().replace(' ', '').split(',')))
-            flag_address = True
-        elif self.latitude_input.text() and self.longtitude_input.text():
-            self.lat, self.lon = float(self.latitude_input.text().strip()), float(self.longtitude_input.text().strip())
-        else:
-            return
-
         # Объявляем переменные, чтобы программа не рухнула
         ll, span = geocoder.get_ll_span(f'{self.lon} {self.lat}')
         # Формируем параметры
         params = {'ll': ll, 'spn': span, 'l': self.mode}
-        if flag_address:
+        if self.flag_address:
             # Добавляем метку
             params["pt"] = "{0},pm2dgl".format(ll)
         if self.clear_mode:
@@ -115,6 +116,7 @@ class MapShower(QMainWindow):
         if event.key() in [Qt.Key_Left, Qt.Key_Right, Qt.Key_Up, Qt.Key_Down, Qt.Key_PageUp, Qt.Key_PageDown]:
             if event.key() == Qt.Key_Left:
                 self.lon -= 0.0002
+                print(self.lon)
             if event.key() == Qt.Key_Right:
                 self.lon += 0.0002
             if event.key() == Qt.Key_Up:
